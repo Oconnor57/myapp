@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prompt Organizer</title>
+<style>
+    :root {
+        --primary: #007bff;
+        --primary-hover: #0069d9;
+        --bg-light: #f8f9fa;
+        --bg-lighter: #ffffff;
+        --text-dark: #343a40;
+        --border-color: #e0e4e8;
+        --danger: #dc3545;
+        --danger-hover: #c82333;
+        --radius-sm: 4px;
+        --radius-md: 8px;
+        --transition: 0.18s ease-in-out;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+        --shadow-md: 0 3px 6px rgba(0,0,0,0.1), 0 6px 12px rgba(0,0,0,0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg-light);
+        color: var(--text-dark);
+        line-height: 1.4;
+        -webkit-font-smoothing: antialiased;
+    }
+    header {
+        padding: 1rem clamp(1rem, 3vw, 2rem);
+        background: var(--bg-lighter);
+        border-bottom: 1px solid var(--border-color);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+    header h1 {
+        margin: 0 0 .25rem;
+        font-size: clamp(1.4rem, 3.5vw, 2rem);
+        letter-spacing: .5px;
+    }
+    header p {
+        margin: 0;
+        font-size: .9rem;
+        opacity: .8;
+    }
+    main {
+        padding: 1.25rem clamp(1rem, 3vw, 2rem) 3rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        display: grid;
+        gap: 1.5rem 2rem;
+        grid-template-columns: 350px 1fr;
+    }
+    @media (max-width: 1000px) {
+        main { grid-template-columns: 1fr; padding-bottom: 5rem; }
+        .sidebar { order: 2; }
+    }
+    h2 { margin-top: 0; }
+    form, .panel, .list-panel {
+        background: var(--bg-lighter);
+        padding: 1rem 1.15rem 1.4rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+        position: relative;
+    }
+    form h2 { font-size: 1.2rem; }
+    label { display: block; font-weight: 600; margin: .75rem 0 .35rem; }
+    input[type=text], textarea, select {
+        width: 100%;
+        padding: .65rem .7rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        background: #fff;
+        font: inherit;
+        resize: vertical;
+        min-height: 42px;
+    }
+    textarea { min-height: 80px; }
+    input:focus, textarea:focus, select:focus {
+        outline: 2px solid var(--primary);
+        outline-offset: 1px;
+    }
+    .actions { margin-top: 1rem; display: flex; gap: .6rem; flex-wrap: wrap; }
+    button { cursor: pointer; font: inherit; }
+    .btn {
+        background: var(--primary);
+        color: #fff;
+        border: 1px solid var(--primary);
+        padding: .65rem 1.05rem;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        letter-spacing: .3px;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        transition: var(--transition);
+        position: relative;
+    }
+    .btn:hover, .btn:focus { background: var(--primary-hover); }
+    .btn.secondary { background: #fff; color: var(--text-dark); border-color: var(--border-color); }
+    .btn.secondary:hover { background: #f1f3f5; }
+    .btn.danger { background: var(--danger); border-color: var(--danger); }
+    .btn.danger:hover { background: var(--danger-hover); }
+    .btn.outline { background: transparent; color: var(--primary); }
+    .btn.outline:hover { background: rgba(0,123,255,.08); }
+    .meta-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .small { font-size: .75rem; opacity: .75; }
+    .status-bar { position: absolute; top: .6rem; right: .8rem; font-size: .65rem; text-transform: uppercase; letter-spacing: .4px; opacity: .55; }
+    .filters { display: flex; flex-wrap: wrap; gap: .75rem 1.1rem; margin-bottom: .75rem; }
+    .filters .field { flex: 1 1 180px; min-width: 160px; }
+    .filters label { margin-top: 0; font-size: .75rem; text-transform: uppercase; letter-spacing: .7px; font-weight: 700; opacity: .7; }
+    .controls { display: flex; flex-wrap: wrap; gap: .75rem; }
+
+    /* Prompt List */
+    #promptList { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .prompt-card {
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: .85rem .9rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: .5rem;
+        position: relative;
+        transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+    }
+    .prompt-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .prompt-card.editing { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,123,255,.2); }
+    .prompt-card h3 { margin: 0; font-size: 1.05rem; line-height: 1.2; }
+    .description-snippet { font-size: .83rem; opacity: .85; line-height: 1.3; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .tag { background: var(--primary); color: #fff; border-radius: 999px; padding: .2rem .6rem; font-size: .65rem; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; }
+    .card-actions { display: flex; gap: .4rem; margin-top: .3rem; }
+    .card-actions button { flex: 1 1 auto; font-size: .7rem; padding: .45rem .55rem; }
+    .empty-state { text-align: center; padding: 2.5rem 1rem; border: 2px dashed var(--border-color); border-radius: var(--radius-md); background: #fff; }
+    .empty-state p { max-width: 440px; margin: .5rem auto 0; font-size: .9rem; }
+
+    /* Utility */
+    .hidden { display: none !important; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .inline { display: inline; }
+    .pill-info { background: #e9f3ff; color: var(--primary); padding: .2rem .5rem; border-radius: var(--radius-sm); font-size: .65rem; font-weight: 600; letter-spacing: .4px; }
+
+    footer { text-align: center; padding: 2rem 1rem; font-size: .75rem; opacity: .7; }
+    @media (max-width: 600px) {
+        .card-actions { flex-direction: row; }
+        .filters { flex-direction: column; }
+        #promptList { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    }
+</style>
+</head>
+<body>
+    <header>
+        <h1>Prompt Organizer</h1>
+        <p>Save, categorize, search & refine your AI prompts locally — no external storage.</p>
+    </header>
+
+    <main>
+        <section class="sidebar">
+            <form id="promptForm" autocomplete="off" novalidate>
+                <div class="status-bar" id="formStatus">New Prompt</div>
+                <h2 id="formTitle">Create Prompt</h2>
+                <input type="hidden" id="promptId" />
+                <label for="title">Title</label>
+                <input type="text" id="title" required placeholder="e.g. Blog Post Idea" />
+
+                <label for="description">Description</label>
+                <textarea id="description" placeholder="Short description of what the prompt does" required></textarea>
+
+                <label for="tags">Tags <span class="small" style="font-weight: normal; opacity:.6;">(comma-separated)</span></label>
+                <input type="text" id="tags" placeholder="e.g. writing, content" />
+
+                <label for="promptText">Full Prompt Text</label>
+                <textarea id="promptText" placeholder="Enter the full prompt here..." required style="min-height:140px;"></textarea>
+
+                <div class="actions">
+                    <button type="submit" class="btn" id="saveBtn">Save Prompt</button>
+                    <button type="button" class="btn secondary hidden" id="cancelEditBtn">Cancel Edit</button>
+                    <button type="button" class="btn outline" id="clearFormBtn" title="Clear all fields">Clear</button>
+                </div>
+                <p class="small" style="margin-top:1rem;">Stored locally using <code>localStorage</code>. Data persists in this browser.</p>
+            </form>
+        </section>
+
+        <section class="list-panel" aria-live="polite">
+            <div class="filters" id="controlsWrapper">
+                <div class="field" style="flex:1 1 220px;">
+                    <label for="searchInput">Search (Title / Description)</label>
+                    <input type="text" id="searchInput" placeholder="Type keywords..." />
+                </div>
+                <div class="field" style="flex:1 1 200px;">
+                    <label for="tagFilter">Filter by Tag</label>
+                    <input type="text" id="tagFilter" placeholder="Type tag..." />
+                </div>
+                <div class="field" style="flex:0 0 180px;">
+                    <label for="sortSelect">Sort</label>
+                    <select id="sortSelect" aria-label="Sort prompts">
+                        <option value="dateDesc">Date Added (Newest)</option>
+                        <option value="dateAsc">Date Added (Oldest)</option>
+                        <option value="titleAsc">Title (A-Z)</option>
+                        <option value="titleDesc">Title (Z-A)</option>
+                    </select>
+                </div>
+                <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+                    <label style="visibility:hidden;">Stats</label>
+                    <div class="pill-info" id="stats">0 Prompts</div>
+                </div>
+            </div>
+            <div id="promptList" class="prompt-list" aria-label="Saved Prompts"></div>
+            <div id="emptyState" class="empty-state hidden">
+                <h3>No prompts found</h3>
+                <p>Create your first prompt using the form on the left. Use tags & descriptions to keep things organized.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        Prompt Organizer – Local only. Built with Vanilla HTML/CSS/JS.
+    </footer>
+
+<script>
+(function() { // IIFE for scoping
+    const STORAGE_KEY = 'promptOrganizer_prompts_v1';
+
+    /** @typedef {Object} Prompt */
+    /** @property {string} id */
+    /** @property {string} title */
+    /** @property {string} description */
+    /** @property {string[]} tags */
+    /** @property {string} promptText */
+    /** @property {number} createdAt */
+    /** @property {number} updatedAt */
+
+    // DOM refs
+    const form = document.getElementById('promptForm');
+    const promptIdInput = document.getElementById('promptId');
+    const titleInput = document.getElementById('title');
+    const descInput = document.getElementById('description');
+    const tagsInput = document.getElementById('tags');
+    const promptTextInput = document.getElementById('promptText');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const clearFormBtn = document.getElementById('clearFormBtn');
+    const promptListEl = document.getElementById('promptList');
+    const emptyStateEl = document.getElementById('emptyState');
+    const tagFilterInput = document.getElementById('tagFilter');
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    const statsEl = document.getElementById('stats');
+    const formStatus = document.getElementById('formStatus');
+    const formTitle = document.getElementById('formTitle');
+
+    let prompts = loadPrompts();
+
+    // Initialize with example prompts if empty
+    if (!prompts.length) {
+        prompts = seedExamples();
+        savePrompts();
+    }
+
+    // Event Listeners
+    form.addEventListener('submit', handleFormSubmit);
+    clearFormBtn.addEventListener('click', () => { clearForm(); titleInput.focus(); });
+    cancelEditBtn.addEventListener('click', () => cancelEdit());
+    tagFilterInput.addEventListener('input', renderListThrottled);
+    searchInput.addEventListener('input', renderListThrottled);
+    sortSelect.addEventListener('change', renderListThrottled);
+
+    // Basic throttle for rendering
+    let renderTimer = null;
+    function renderListThrottled() {
+        if (renderTimer) cancelAnimationFrame(renderTimer);
+        renderTimer = requestAnimationFrame(() => renderPromptList());
+    }
+
+    function handleFormSubmit(e) {
+        e.preventDefault();
+        const isEdit = !!promptIdInput.value;
+        const title = titleInput.value.trim();
+        const description = descInput.value.trim();
+        const tags = parseTags(tagsInput.value);
+        const promptText = promptTextInput.value.trim();
+
+        if (!title || !description || !promptText) {
+            alert('Please fill out Title, Description, and Full Prompt Text.');
+            return;
+        }
+
+        if (isEdit) {
+            const id = promptIdInput.value;
+            const idx = prompts.findIndex(p => p.id === id);
+            if (idx !== -1) {
+                prompts[idx] = { ...prompts[idx], title, description, tags, promptText, updatedAt: Date.now() };
+                savePrompts();
+                renderPromptList();
+                highlightCard(id);
+                setFormMode('create');
+                clearForm();
+            }
+        } else {
+            const newPrompt = { id: crypto.randomUUID(), title, description, tags, promptText, createdAt: Date.now(), updatedAt: Date.now() };
+            prompts.push(newPrompt);
+            savePrompts();
+            clearForm();
+            renderPromptList();
+            highlightCard(newPrompt.id);
+        }
+    }
+
+    function parseTags(input) {
+        return input.split(',').map(t => t.trim()).filter(Boolean).map(t => t.toLowerCase());
+    }
+
+    function seedExamples() {
+        const now = Date.now();
+        return [
+            {
+                id: crypto.randomUUID(),
+                title: 'Blog Post Idea',
+                description: 'Generate blog ideas for topic X',
+                tags: ['content','writing'],
+                promptText: 'Brainstorm 10 engaging blog post titles about [topic X] for a [target audience].',
+                createdAt: now - 30000,
+                updatedAt: now - 30000
+            },
+            {
+                id: crypto.randomUUID(),
+                title: 'Python Function',
+                description: 'Create a Python function for Y',
+                tags: ['code','python'],
+                promptText: 'Write a Python function that takes [input] and returns [output], handling [edge cases].',
+                createdAt: now - 20000,
+                updatedAt: now - 20000
+            },
+            {
+                id: crypto.randomUUID(),
+                title: 'Email Draft',
+                description: 'Draft a professional follow-up email',
+                tags: ['communication','email'],
+                promptText: 'Compose a concise, polite follow-up email to [recipient role] about [subject], referencing [previous interaction]. Provide 2 tone variations.',
+                createdAt: now - 10000,
+                updatedAt: now - 10000
+            }
+        ];
+    }
+
+    function loadPrompts() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return [];
+            const data = JSON.parse(raw);
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Failed to load prompts', err);
+            return [];
+        }
+    }
+
+    function savePrompts() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prompts)); }
+        catch (err) { console.error('Failed to save prompts', err); }
+    }
+
+    function clearForm() {
+        form.reset();
+        promptIdInput.value = '';
+        setFormMode('create');
+    }
+
+    function setFormMode(mode) {
+        if (mode === 'edit') {
+            saveBtn.textContent = 'Update Prompt';
+            formStatus.textContent = 'Editing';
+            formTitle.textContent = 'Edit Prompt';
+            cancelEditBtn.classList.remove('hidden');
+        } else {
+            saveBtn.textContent = 'Save Prompt';
+            formStatus.textContent = 'New Prompt';
+            formTitle.textContent = 'Create Prompt';
+            cancelEditBtn.classList.add('hidden');
+        }
+    }
+
+    function cancelEdit() {
+        clearForm();
+    }
+
+    function renderPromptList() {
+        const query = searchInput.value.trim().toLowerCase();
+        const tagQuery = tagFilterInput.value.trim().toLowerCase();
+        const sortMode = sortSelect.value;
+
+        let filtered = [...prompts];
+
+        if (query) {
+            filtered = filtered.filter(p => p.title.toLowerCase().includes(query) || p.description.toLowerCase().includes(query));
+        }
+        if (tagQuery) {
+            filtered = filtered.filter(p => p.tags.some(t => t.includes(tagQuery)));
+        }
+
+        filtered.sort((a, b) => {
+            switch (sortMode) {
+                case 'dateAsc': return a.createdAt - b.createdAt;
+                case 'dateDesc': return b.createdAt - a.createdAt;
+                case 'titleAsc': return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+                case 'titleDesc': return b.title.localeCompare(a.title, undefined, { sensitivity: 'base' });
+                default: return b.createdAt - a.createdAt;
+            }
+        });
+
+        promptListEl.innerHTML = '';
+
+        if (!filtered.length) {
+            emptyStateEl.classList.remove('hidden');
+        } else {
+            emptyStateEl.classList.add('hidden');
+            const frag = document.createDocumentFragment();
+            filtered.forEach(p => frag.appendChild(createPromptCard(p)));
+            promptListEl.appendChild(frag);
+        }
+        updateStats(filtered.length);
+    }
+
+    function updateStats(count) {
+        statsEl.textContent = count + (count === 1 ? ' Prompt' : ' Prompts');
+    }
+
+    function createPromptCard(prompt) {
+        const card = document.createElement('article');
+        card.className = 'prompt-card';
+        card.dataset.id = prompt.id;
+
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = prompt.title;
+        card.appendChild(titleEl);
+
+        const snippet = document.createElement('div');
+        snippet.className = 'description-snippet';
+        snippet.textContent = truncate(prompt.description, 90);
+        card.appendChild(snippet);
+
+        if (prompt.tags.length) {
+            const tagRow = document.createElement('div');
+            tagRow.className = 'tag-row';
+            prompt.tags.forEach(t => {
+                const tagEl = document.createElement('span');
+                tagEl.className = 'tag';
+                tagEl.textContent = t;
+                tagRow.appendChild(tagEl);
+            });
+            card.appendChild(tagRow);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'card-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'btn secondary';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => startEdit(prompt.id));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn danger';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', () => deletePrompt(prompt.id));
+
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+        card.appendChild(actions);
+
+        card.addEventListener('dblclick', () => copyPromptText(prompt));
+        card.title = 'Double-click to copy full prompt to clipboard';
+
+        return card;
+    }
+
+    function startEdit(id) {
+        const prompt = prompts.find(p => p.id === id);
+        if (!prompt) return;
+        promptIdInput.value = prompt.id;
+        titleInput.value = prompt.title;
+        descInput.value = prompt.description;
+        tagsInput.value = prompt.tags.join(', ');
+        promptTextInput.value = prompt.promptText;
+        setFormMode('edit');
+        highlightCard(id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        titleInput.focus();
+    }
+
+    function deletePrompt(id) {
+        const prompt = prompts.find(p => p.id === id);
+        if (!prompt) return;
+        if (!confirm(`Delete prompt "${prompt.title}"? This cannot be undone.`)) return;
+        prompts = prompts.filter(p => p.id !== id);
+        savePrompts();
+        renderPromptList();
+        if (promptIdInput.value === id) {
+            clearForm();
+        }
+    }
+
+    function copyPromptText(prompt) {
+        if (!navigator.clipboard) return;
+        navigator.clipboard.writeText(prompt.promptText).then(() => {
+            showToast('Prompt copied to clipboard');
+        }).catch(() => {});
+    }
+
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.position = 'fixed';
+        toast.style.bottom = '1rem';
+        toast.style.left = '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.background = 'var(--primary)';
+        toast.style.color = '#fff';
+        toast.style.padding = '.6rem 1rem';
+        toast.style.borderRadius = 'var(--radius-sm)';
+        toast.style.fontSize = '.8rem';
+        toast.style.boxShadow = 'var(--shadow-md)';
+        toast.style.zIndex = '9999';
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity .25s ease, transform .25s ease';
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translate(-50%, -6px)'; });
+        setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translate(-50%, 0)'; }, 1700);
+        setTimeout(() => toast.remove(), 2100);
+    }
+
+    function truncate(str, len) {
+        if (str.length <= len) return str;
+        return str.slice(0, len - 1).trim() + '…';
+    }
+
+    function highlightCard(id) {
+        const card = promptListEl.querySelector(`[data-id="${id}"]`);
+        if (!card) return;
+        card.classList.add('editing');
+        setTimeout(() => card.classList.remove('editing'), 1600);
+    }
+
+    // Initial Render
+    renderPromptList();
+
+    // Optional: Expose import/export methods for user (not required but helpful)
+    window.promptOrganizer = {
+        export() {
+            const json = JSON.stringify(prompts, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'prompts-export.json';
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+        },
+        import(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        // Merge by id (if duplicate, update)
+                        const map = new Map(prompts.map(p => [p.id, p]));
+                        data.forEach(p => {
+                            if (p && typeof p === 'object' && p.id) {
+                                map.set(p.id, { ...p });
+                            }
+                        });
+                        prompts = Array.from(map.values());
+                        savePrompts();
+                        renderPromptList();
+                        showToast('Import complete');
+                    } else {
+                        alert('Invalid import file format.');
+                    }
+                } catch (err) { alert('Failed to parse import file.'); }
+            };
+            reader.readAsText(file);
+        }
+    };
+})();
+</script>
+</body>
+</html>
